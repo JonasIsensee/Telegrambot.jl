@@ -10,7 +10,7 @@ struct InlineQueryResultArticle
     message::String
 end
 
-function startBot(botApi=""; textHandle=Dict(), inlineQueryHandle=Dict())
+function startBot(botApi=""; textHandle=Dict(), inlineQueryHandle=Dict(), listenHandle=Dict())
     if isempty(textHandle)
         error("You need to pass repond function as parameter to startBot")
     end
@@ -28,6 +28,16 @@ function startBot(botApi=""; textHandle=Dict(), inlineQueryHandle=Dict())
                 msg = rawCmd["message"]
                 cmdName=" "
                 cmdPara = " "
+                for key in keys(listenHandle)
+                    println(key)
+                    println(msg["text"])
+                    if findfirst(key, msg["text"]) != nothing
+                        reply = listenHandle[key](msg["text"]) |> HTTP.URIs.escapeuri #encode for GET purpose
+                        reply_id = string(msg["chat"]["id"]) |> HTTP.URIs.escapeuri #encode for GET purpose
+
+                        sendText(botApi, reply_id, reply)
+                    end
+                end
                 try
                     cmdName = string(match(r"/([^@\s]+)", msg["text"])[1]) #match till first @ or space
                 catch
@@ -80,7 +90,7 @@ function answerInlineQuery(botApi, query_id, results::String)
 end
 
 #encode a list of InlineQueryResultArticle according to telegram api JSON format
-function ArticleListtoJSON(articles::Array{InlineQueryResultArticle}) 
+function ArticleListtoJSON(articles::Array{InlineQueryResultArticle})
     return JSON.json([ Dict(
                             "type"=>"article","id"=>article.id,
                             "title"=>article.title,
